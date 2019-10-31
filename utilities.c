@@ -63,10 +63,14 @@ char **read_textfile(char *FILENAME){
 
 //determines whether a word is in the dictionary
 int check_word(char **dict, char *word){
-  
+
+  printf("%s[%s]","entered: ",  word);
+   
   int i = 0;
   while(dict[i]!=NULL){
 
+   
+    
     if (strcmp(dict[i], word) == 0){
       printf("FOUND: [%s]\n", word);
       return 1;
@@ -77,6 +81,7 @@ int check_word(char **dict, char *word){
   }
 
   //if not returned, the word does not exist
+  
   puts("MISSPELLED");
   return 0;
 }

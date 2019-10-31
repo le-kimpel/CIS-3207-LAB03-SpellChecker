@@ -20,10 +20,11 @@ int main(int argc, char** argv)
   
  //default dictionary preset
   DEFAULT_DICT = read_textfile("words-2.txt");
-
+  
   //custom dictionary is read if there is an argument for it
   if (argv[2] != NULL){
     CUSTOM_DICT = read_textfile(argv[2]);
+    DEFAULT_DICT = CUSTOM_DICT;
     printf("Using custom dictionary: [%s]\n", argv[2]);
   }
 
@@ -32,7 +33,7 @@ int main(int argc, char** argv)
     printf("No port number entered.\n");
     return -1;
   }
-
+  
   
   //sockaddr_in holds information about the user connection. 
   //We don't need it, but it needs to be passed into accept().
@@ -57,7 +58,8 @@ int main(int argc, char** argv)
     printf("Could not connect to %s, maybe try another port number?\n", argv[1]);
     return -1;
   }
-  
+
+  printf("i am here, awaiting your input at port [%d] and socket [%d]\n", connectionPort, connectionSocket);
   //accept() waits until a user connects to the server, writing information about that server
   //into the sockaddr_in client.
   //If the connection is successful, we obtain A SECOND socket descriptor. 
@@ -65,10 +67,13 @@ int main(int argc, char** argv)
   //One by the server to listen for incoming connections.
   //The second that was just created that will be used to communicate with 
   //the connected user.
+
+  
   if((clientSocket = accept(connectionSocket, (struct sockaddr*)&client, &clientLen)) == -1){
     printf("Error connecting to client.\n");
     return -1;
   }
+
   
   printf("Connection success!\n");
   char* clientMessage = "Hello! I hope you can see this.\n";
@@ -84,9 +89,9 @@ int main(int argc, char** argv)
   send(clientSocket, clientMessage, strlen(clientMessage), 0);
   send(clientSocket, msgRequest, strlen(msgRequest), 0);
   
-  
   //Begin sending and receiving messages.
   while(1){
+    
     send(clientSocket, msgPrompt, strlen(msgPrompt), 0);
     //recv() will store the message from the user in the buffer, returning
     //how many bytes we received.
@@ -97,16 +102,26 @@ int main(int argc, char** argv)
     if(bytesReturned == -1){
       send(clientSocket, msgError, strlen(msgError), 0);
     }
+   
     //'27' is the escape key.
     else if(recvBuffer[0] == 27){
 			send(clientSocket, msgClose, strlen(msgClose), 0);
 			close(clientSocket);
 			break;
     }
+  
     else{
       send(clientSocket, msgResponse, strlen(msgResponse), 0);
       send(clientSocket, recvBuffer, bytesReturned, 0);
     }
+
+    //clears buffer
+    recvBuffer[bytesReturned] = '\0';
+
+    //check if dictionary word is legitimate
+    (check_word(DEFAULT_DICT, recvBuffer));
+    
   }
+  
   return 0;
 }
