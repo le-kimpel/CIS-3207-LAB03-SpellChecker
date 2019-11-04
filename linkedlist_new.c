@@ -2,8 +2,13 @@
 #include <stdlib.h>
 #include <pthread.h>
 #define MAX_CAPACITY 15
-//should make a standard  FIFO queue
-//using a linkedlist
+
+/* Overhauled version of the queue from the first lab.
+   Holds socket connections this time and dequeues from
+   the back. It also contains locks and condition variables
+   within the queue struct for better and more atomic 
+   organization.
+*/
 
 typedef struct jobNode{
 
@@ -14,7 +19,7 @@ typedef struct jobNode{
 
 //defines the queue structure and associated condition variables
 typedef struct Queue{
-  connection*head;
+  connection *head;
   connection *tail;
   int size;
   int counter;
@@ -170,12 +175,7 @@ int dequeue(q *queue){
   }
 
   puts("waiting...");
-  /*
-   //queue is empty, return failure
-  if (queue->size == 0){
-    return 0;
-  */
-  
+ 
     //queue can remove an item from the back
 
     connection *temp = queue->head;

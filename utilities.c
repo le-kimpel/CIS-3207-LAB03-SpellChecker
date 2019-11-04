@@ -5,7 +5,6 @@
 
 ///function prototypes
 char **read_textfile(char *FILENAME);
-char **sort(char **dict);
 int check_word(char **dict, char *word);
 void print_str(char **str);
 
@@ -64,15 +63,13 @@ char **read_textfile(char *FILENAME){
 //determines whether a word is in the dictionary
 int check_word(char **dict, char *word){
 
-  printf("%s[%s]","entered: ",  word);
+  printf("%s%s","ENTERED: ",  word);
    
   int i = 0;
   while(dict[i]!=NULL){
-
-   
     
     if (strcmp(dict[i], word) == 0){
-      printf("FOUND: [%s]\n", word);
+      printf("FOUND: %s\n", word);
       return 1;
     }
 

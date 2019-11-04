@@ -13,6 +13,11 @@
 //receiving messages.
 
 
+//function prototypes
+pthread_t *create_threadpool();
+void *take_socket(void *threadID);
+void client(int clientSocket);
+
 //global values for default dictionary
 char **DEFAULT_DICT;
 
@@ -25,16 +30,12 @@ int DEFUALT_PORT = 1111;
 //default worker num
 const int WORKER_NUM = 2;
 
+//global variables for servicing client using recv
 int bytesReturned;
 char recvBuffer[BUF_LEN];
 
 //global socket queue
 q *job_queue;
-
-//function prototypes
-pthread_t *create_threadpool();
-void *take_socket(void *threadID);
-void client(int clientSocket);
 
 //main thread
 int main(int argc, char** argv)
@@ -179,13 +180,6 @@ pthread_t * create_threadpool(){
     thread_ID[i] = i;
     pthread_create(&THREADPOOL[i], NULL, &take_socket, &thread_ID[i]);
   }
-
-  /*
-  //wait for all threads
-  for (int j = 0; j < WORKER_NUM; j++){
-    pthread_join(THREADPOOL[j], NULL);
-  }
-  */
   return THREADPOOL;
 }
 
@@ -196,7 +190,8 @@ void *take_socket(void *threadID){
   
     //if our queue is nonempty, retrieve the connection from it
     int retrieved = dequeue(job_queue);
-    printf("socket [%d] was retrieved from queue by a thread\n", retrieved);
+    printf("socket [%d] was retrieved from queue by thread [%d]\n", retrieved,
+	   *(int*)threadID);
     client(retrieved); 
   }
 
