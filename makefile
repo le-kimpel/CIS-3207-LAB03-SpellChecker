@@ -1,11 +1,11 @@
 CFLAGS = -g
 
-objects = simpleServer.o utilities.o open_listenfd.o linkedlist_new.o 
+objects = simpleServer.o linkedlist_new.o utilities.o open_listenfd.o
 
 main : $(objects)
-	cc -o main $(objects)
+	cc -pthread -o main $(objects) $(CFLAGS)
 
-simpleServer.o : utilities.h open_listenfd.h linkedlist_new.h
+main.o : linkedlist_new.h utilities.h open_listenfd.h
 
 .PHONY : clean
 clean :

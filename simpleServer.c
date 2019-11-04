@@ -1,6 +1,7 @@
 #include "simpleServer.h"
 #include "utilities.h"
 #include "linkedlist_new.h"
+#include <pthread.h>
 
 //An extremely simple server that connects to a given port.
 //Once the server is connected to the port, it will listen on that port
@@ -11,16 +12,50 @@
 //The server will then use the socket descriptor to communicate with the user, sending and 
 //receiving messages.
 
+
+//global values for default dictionary
 char **DEFAULT_DICT;
+
+//global values for custom dictionary included in cmd line
 char **CUSTOM_DICT;
+
+//default port number
 int DEFUALT_PORT = 1111;
 
+//default worker num
+const int WORKER_NUM = 2;
+
+int bytesReturned;
+char recvBuffer[BUF_LEN];
+
+//global socket queue
+q *job_queue;
+
+//function prototypes
+pthread_t *create_threadpool();
+void *take_socket(void *threadID);
+void client(int clientSocket);
+
+//main thread
 int main(int argc, char** argv)
 {
   
+  puts("START");
+
+  puts("Initializing queue...");
+  //generate the connection queue
+  job_queue = initialize_queue();
+
+  puts("Generating threadpool...");
+
+  //generate threadpool
+  create_threadpool();
+
+  puts("Threadpool generated...");
+  
  //default dictionary preset
   DEFAULT_DICT = read_textfile("words-2.txt");
-  
+
   //custom dictionary is read if there is an argument for it
   if (argv[2] != NULL){
     CUSTOM_DICT = read_textfile(argv[2]);
@@ -34,14 +69,12 @@ int main(int argc, char** argv)
     return -1;
   }
   
-  
   //sockaddr_in holds information about the user connection. 
   //We don't need it, but it needs to be passed into accept().
   struct sockaddr_in client;
   int clientLen = sizeof(client);
   int connectionPort = atoi(argv[1]);
-  int connectionSocket, clientSocket, bytesReturned;
-  char recvBuffer[BUF_LEN];
+  int connectionSocket, clientSocket;
   recvBuffer[0] = '\0';
   
   connectionPort = atoi(argv[1]);
@@ -54,12 +87,15 @@ int main(int argc, char** argv)
   
   //Does all the hard work for us.
   connectionSocket = open_listenfd(connectionPort);
+  printf("%d\n", connectionSocket);
   if(connectionSocket == -1){
     printf("Could not connect to %s, maybe try another port number?\n", argv[1]);
     return -1;
   }
 
-  printf("i am here, awaiting your input at port [%d] and socket [%d]\n", connectionPort, connectionSocket);
+  while(1){
+
+  printf("I am awaiting your input at port [%d] and socket [%d]\n", connectionPort, connectionSocket);
   //accept() waits until a user connects to the server, writing information about that server
   //into the sockaddr_in client.
   //If the connection is successful, we obtain A SECOND socket descriptor. 
@@ -74,6 +110,13 @@ int main(int argc, char** argv)
     return -1;
   }
 
+  //enqueue the incoming file descriptor into the job queue
+  enqueue(job_queue, clientSocket);
+}
+
+  return 0;
+}
+void client(int clientSocket){
   
   printf("Connection success!\n");
   char* clientMessage = "Hello! I hope you can see this.\n";
@@ -108,9 +151,7 @@ int main(int argc, char** argv)
 			send(clientSocket, msgClose, strlen(msgClose), 0);
 			close(clientSocket);
 			break;
-    }
-  
-    else{
+    }else{
       send(clientSocket, msgResponse, strlen(msgResponse), 0);
       send(clientSocket, recvBuffer, bytesReturned, 0);
     }
@@ -123,5 +164,41 @@ int main(int argc, char** argv)
     
   }
   
-  return 0;
 }
+
+
+//experimental method that creates a pool of threads to 1 function
+pthread_t * create_threadpool(){
+
+  //allocates memory for an array of WORKER_NUM threads
+  pthread_t *THREADPOOL = (pthread_t*)malloc(WORKER_NUM*sizeof(pthread_t));
+  int thread_ID[WORKER_NUM];
+
+  //fill the array
+  for (int i = 0; i < WORKER_NUM; i++){
+    thread_ID[i] = i;
+    pthread_create(&THREADPOOL[i], NULL, &take_socket, &thread_ID[i]);
+  }
+
+  /*
+  //wait for all threads
+  for (int j = 0; j < WORKER_NUM; j++){
+    pthread_join(THREADPOOL[j], NULL);
+  }
+  */
+  return THREADPOOL;
+}
+
+void *take_socket(void *threadID){
+
+  while(1){
+  puts("Attempting to take socket...");
+  
+    //if our queue is nonempty, retrieve the connection from it
+    int retrieved = dequeue(job_queue);
+    printf("socket [%d] was retrieved from queue by a thread\n", retrieved);
+    client(retrieved); 
+  }
+
+}
+ 
