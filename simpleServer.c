@@ -1,6 +1,7 @@
 #include "simpleServer.h"
 #include "utilities.h"
 #include "linkedlist_new.h"
+#include "logger.h"
 #include <pthread.h>
 
 //An extremely simple server that connects to a given port.
@@ -16,7 +17,7 @@
 //function prototypes
 pthread_t *create_threadpool();
 void *take_socket(void *threadID);
-void client(int clientSocket);
+void client_handler(int clientSocket);
 
 //global values for default dictionary
 char **DEFAULT_DICT;
@@ -44,6 +45,7 @@ int main(int argc, char** argv)
   puts("START");
 
   puts("Initializing queue...");
+
   //generate the connection queue
   job_queue = initialize_queue();
 
@@ -117,7 +119,8 @@ int main(int argc, char** argv)
 
   return 0;
 }
-void client(int clientSocket){
+
+void client_handler(int clientSocket){
   
   printf("Connection success!\n");
   char* clientMessage = "Hello! I hope you can see this.\n";
@@ -135,6 +138,7 @@ void client(int clientSocket){
   
   //Begin sending and receiving messages.
   while(1){
+
     
     send(clientSocket, msgPrompt, strlen(msgPrompt), 0);
     //recv() will store the message from the user in the buffer, returning
@@ -145,13 +149,11 @@ void client(int clientSocket){
     //user specified it.
     if(bytesReturned == -1){
       send(clientSocket, msgError, strlen(msgError), 0);
-    }
-   
-    //'27' is the escape key.
-    else if(recvBuffer[0] == 27){
-			send(clientSocket, msgClose, strlen(msgClose), 0);
-			close(clientSocket);
-			break;
+    }else if (bytesReturned == 0){
+      close(clientSocket);
+      printf("Disconnected client\n");
+      break;
+    //"done" is the escape key.
     }else{
       send(clientSocket, msgResponse, strlen(msgResponse), 0);
       send(clientSocket, recvBuffer, bytesReturned, 0);
@@ -159,7 +161,11 @@ void client(int clientSocket){
 
     //clears buffer
     recvBuffer[bytesReturned] = '\0';
-
+    if(strcmp(recvBuffer, "done\n") == 0){
+      send(clientSocket, msgClose, strlen(msgClose), 0);
+      close(clientSocket);
+      break;
+    }
     //check if dictionary word is legitimate
     (check_word(DEFAULT_DICT, recvBuffer));
     
@@ -168,31 +174,38 @@ void client(int clientSocket){
 }
 
 
-//experimental method that creates a pool of threads to 1 function
+//method that creates a pool of threads to 1 function
 pthread_t * create_threadpool(){
 
   //allocates memory for an array of WORKER_NUM threads
   pthread_t *THREADPOOL = (pthread_t*)malloc(WORKER_NUM*sizeof(pthread_t));
   int thread_ID[WORKER_NUM];
-
-  //fill the array
+  
+  //fill the array for tracking purposes
   for (int i = 0; i < WORKER_NUM; i++){
     thread_ID[i] = i;
-    pthread_create(&THREADPOOL[i], NULL, &take_socket, &thread_ID[i]);
+    printf("tid %d\n", i);
+
+    pthread_create(&THREADPOOL[i], NULL, &take_socket, &i);
   }
+  
   return THREADPOOL;
 }
 
+//function for threads to retrieve socket connections from queue
 void *take_socket(void *threadID){
-
+  printf("tid %d", *((int*)threadID));
+  int tid = (*((int*)threadID));
   while(1){
   puts("Attempting to take socket...");
   
     //if our queue is nonempty, retrieve the connection from it
     int retrieved = dequeue(job_queue);
+   
     printf("socket [%d] was retrieved from queue by thread [%d]\n", retrieved,
-	   *(int*)threadID);
-    client(retrieved); 
+	   tid);
+    //handle the retireved connection for the client
+    client_handler(retrieved); 
   }
 
 }

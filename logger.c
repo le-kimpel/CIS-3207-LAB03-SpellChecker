@@ -3,56 +3,51 @@
 #include <pthread.h>
 #define MAX_CAPACITY 15
 
-/* Overhauled version of the queue from the first lab.
-   Holds socket connections this time and dequeues from
-   the back. It also contains locks and condition variables
-   within the queue struct for better and more atomic 
-   organization.
-*/
+/*Logger thread that holds strings*/
 
-typedef struct jobNode{
+typedef struct logNode{
 
-  struct jobNode *next;
-  int element;
+  struct logNode *next;
+  char *element;
   
-}connection;
+}log;
 
 //defines the queue structure and associated condition variables
-typedef struct Queue{
-  connection *head;
-  connection *tail;
+typedef struct l_Queue{
+  log *head;
+  log *tail;
   int size;
   int counter;
   int capacity;
   pthread_mutex_t mutex;
   pthread_cond_t isEmpty;
   pthread_cond_t isFull;
-}q;
+}lq;
 
-_Bool QisEmpty(q *queue);
-connection *new_node();
-void enqueue(q *queue, int element);
-int dequeue(q *queue);
-int get(q *queue, int index);
-q *initialize_queue();
-void print_q(q *command_list);
+_Bool l_QisEmpty(lq *queue);
+log *l_new_node();
+void l_enqueue(lq *queue, char *element);
+char* l_dequeue(lq *queue);
+char* l_get(lq *queue, int index);
+lq *l_initialize_queue();
+void l_print_q(lq *command_list);
 
 //function to print the list for debugging
-void print_q(q *command_list){
-  
-  for (int i = 0; i < command_list->size; i++){
-    int entry = get(command_list, i);
-    printf("%s%d%s", "[", entry, "]");
+void l_print_q(lq *command_list){
+
+  int i = 0;
+  while(l_get(command_list, i) != NULL){
+    char* entry = l_get(command_list, i);
+    printf("%s%s%s", "[", entry, "]");
+    i++;
   }
   
   puts("");
 }
 
+char *l_get(lq *queue, int index){
 
-
-int get(q *queue, int index){
-
-  connection *current = queue->head;
+  log *current = queue->head;
   
   int flag = 0;
   
@@ -67,12 +62,13 @@ int get(q *queue, int index){
     current = current->next;
     
   }
- 
+
+  return current->element;
 }
-q *initialize_queue(){
+lq *l_initialize_queue(){
 
   //allocate memory for the queue structure
-  q *queue = (q*)malloc(sizeof(q));
+  lq *queue = (lq*)malloc(sizeof(lq));
 
   //define the max capacity and the flag that tracks it
   //(so as to control indeces operated on by our finite amount of threads)
@@ -92,20 +88,20 @@ q *initialize_queue(){
   return queue;
 }
 
-connection *new_node(int element){
+log *l_new_node(char *element){
 
   //create and allocate new node for queue pointer
-  connection *temp = (connection*)malloc(sizeof(connection));
+  log *temp = (log*)malloc(sizeof(log));
   temp->element = element;
   temp->next = NULL;
   return temp;
   
 }
 
-void enqueue(q *queue, int element){
+void l_enqueue(lq *queue, char* element){
 
   //creates a new node for the queue
-  connection *temp = new_node(element);
+  log *temp = l_new_node(element);
 
   puts("locking queue...");
   
@@ -157,7 +153,7 @@ void enqueue(q *queue, int element){
 }                                            
 
 //dequeues and locks the structure
-int dequeue(q *queue){
+char *l_dequeue(lq *queue){
 
   puts("Locking dequeue...");
   
@@ -166,28 +162,22 @@ int dequeue(q *queue){
   }
 
   puts("Queue locked");
-
-  printf("q counter = [%d]\n", queue->counter);
-  printf("q size = [%d]\n", queue->size);
   
   while(queue->counter == 0){
     if (pthread_cond_wait(&queue->isFull, &queue->mutex)){
       puts("ERROR: unable to wait on a full slot");
-    }
   }
-  
-  printf("q counter = [%d]\n", queue->counter);
-  printf("q size = [%d]\n", queue->size);
-  
+
+  }
+
   puts("waiting...");
-  
+ 
     //queue can remove an item from the back
 
-    connection *temp = queue->head;
+    log *temp = queue->head;
     queue->head = queue->head->next;
     queue->size--;
-    queue->counter--;
-    
+
     puts("Signaling...");
     
     //attempt to signal producers
@@ -207,7 +197,7 @@ int dequeue(q *queue){
     return temp->element;
   }
 
-  _Bool QisEmpty(q *queue){
+  _Bool l_QisEmpty(lq *queue){
     if (queue->size == 0){
       return 1;
     }else{
