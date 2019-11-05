@@ -18,6 +18,7 @@
 pthread_t *create_threadpool();
 void *take_socket(void *threadID);
 void client_handler(int clientSocket);
+void *log_entry(void *arg);
 
 //global values for default dictionary
 char **DEFAULT_DICT;
@@ -38,16 +39,24 @@ char recvBuffer[BUF_LEN];
 //global socket queue
 q *job_queue;
 
+//global log queue
+lq *log_queue;
+
+//logger thread
+pthread_t log_thread;
+
 //main thread
 int main(int argc, char** argv)
-{
-  
+{ 
   puts("START");
-
-  puts("Initializing queue...");
+   
+  puts("Initializing queues...");
 
   //generate the connection queue
   job_queue = initialize_queue();
+
+  //generate the logger queue
+  log_queue = l_initialize_queue();
 
   puts("Generating threadpool...");
 
@@ -107,7 +116,6 @@ int main(int argc, char** argv)
   //The second that was just created that will be used to communicate with 
   //the connected user.
 
-  
   if((clientSocket = accept(connectionSocket, (struct sockaddr*)&client, &clientLen)) == -1){
     printf("Error connecting to client.\n");
     return -1;
@@ -116,11 +124,13 @@ int main(int argc, char** argv)
   //enqueue the incoming file descriptor into the job queue
   enqueue(job_queue, clientSocket);
 }
-
   return 0;
 }
 
 void client_handler(int clientSocket){
+
+  //create the file pointer for the log file
+  FILE *fp = fopen("log.txt", "w");
   
   printf("Connection success!\n");
   char* clientMessage = "Hello! I hope you can see this.\n";
@@ -130,6 +140,9 @@ void client_handler(int clientSocket){
   char* msgError = "I didn't get your message. ):\n";
   char* msgClose = "Goodbye!\n";
   
+  //initialize the logger thread
+  pthread_create(&log_thread, NULL, &log_entry, fp);
+  
   //send()...sends a message.
   //We specify the socket we want to send, the message and it's length, the 
   //last parameter are flags.
@@ -138,7 +151,6 @@ void client_handler(int clientSocket){
   
   //Begin sending and receiving messages.
   while(1){
-
     
     send(clientSocket, msgPrompt, strlen(msgPrompt), 0);
     //recv() will store the message from the user in the buffer, returning
@@ -152,6 +164,7 @@ void client_handler(int clientSocket){
     }else if (bytesReturned == 0){
       close(clientSocket);
       printf("Disconnected client\n");
+      fclose(fp);
       break;
     //"done" is the escape key.
     }else{
@@ -159,23 +172,35 @@ void client_handler(int clientSocket){
       send(clientSocket, recvBuffer, bytesReturned, 0);
     }
 
-    //clears buffer
+    //clears buffer, checks for terminating condition
     recvBuffer[bytesReturned] = '\0';
     if(strcmp(recvBuffer, "done\n") == 0){
       send(clientSocket, msgClose, strlen(msgClose), 0);
       close(clientSocket);
+      fclose(fp);
       break;
     }
-    //check if dictionary word is legitimate
+   
+    //check if dictionary word is legitimate and log it
     (check_word(DEFAULT_DICT, recvBuffer));
+
+    l_enqueue(log_queue, recvBuffer);
     
   }
   
 }
 
+//method that logs each string entry to log.txt
+void *log_entry(void *arg){
 
+  while(1){
+    char* entry = l_dequeue(log_queue);
+    fprintf(arg,"%s\n", entry);
+  }
+}
+  
 //method that creates a pool of threads to 1 function
-pthread_t * create_threadpool(){
+pthread_t *create_threadpool(){
 
   //allocates memory for an array of WORKER_NUM threads
   pthread_t *THREADPOOL = (pthread_t*)malloc(WORKER_NUM*sizeof(pthread_t));
@@ -184,8 +209,6 @@ pthread_t * create_threadpool(){
   //fill the array for tracking purposes
   for (int i = 0; i < WORKER_NUM; i++){
     thread_ID[i] = i;
-    printf("tid %d\n", i);
-
     pthread_create(&THREADPOOL[i], NULL, &take_socket, &i);
   }
   
@@ -194,19 +217,21 @@ pthread_t * create_threadpool(){
 
 //function for threads to retrieve socket connections from queue
 void *take_socket(void *threadID){
-  printf("tid %d", *((int*)threadID));
+
+  //thread ID 
   int tid = (*((int*)threadID));
+
   while(1){
-  puts("Attempting to take socket...");
-  
+    puts("Attempting to take socket...");
+    
     //if our queue is nonempty, retrieve the connection from it
     int retrieved = dequeue(job_queue);
-   
+    
     printf("socket [%d] was retrieved from queue by thread [%d]\n", retrieved,
 	   tid);
     //handle the retireved connection for the client
     client_handler(retrieved); 
   }
-
+  
 }
  

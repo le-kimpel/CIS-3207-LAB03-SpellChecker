@@ -26,13 +26,13 @@ typedef struct l_Queue{
 }lq;
 
 
-_Bool l_QisEmpty(q *queue);
+_Bool l_QisEmpty(lq *queue);
 log *l_new_node();
-void l_enqueue(q *queue, char *element);
-char* l_dequeue(q *queue);
-char* l_get(q *queue, int index);
-q *l_initialize_queue();
-void l_print_q(q *command_list);
+void l_enqueue(lq *queue, char *element);
+char* l_dequeue(lq *queue);
+char* l_get(lq *queue, int index);
+lq *l_initialize_queue();
+void l_print_q(lq *command_list);
 
 
 #endif //LOGGER_H

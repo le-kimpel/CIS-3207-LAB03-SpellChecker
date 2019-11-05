@@ -173,11 +173,11 @@ char *l_dequeue(lq *queue){
   puts("waiting...");
  
     //queue can remove an item from the back
-
     log *temp = queue->head;
     queue->head = queue->head->next;
     queue->size--;
-
+    queue->counter--;
+    
     puts("Signaling...");
     
     //attempt to signal producers
