@@ -27,7 +27,7 @@ char **DEFAULT_DICT;
 char **CUSTOM_DICT;
 
 //default port number
-int DEFUALT_PORT = 1111;
+char *DEFAULT_PORT;
 
 //default worker num
 const int WORKER_NUM = 2;
@@ -49,6 +49,8 @@ pthread_t log_thread;
 int main(int argc, char** argv)
 { 
   puts("START");
+
+  DEFAULT_PORT = "1111";
    
   puts("Initializing queues...");
 
@@ -68,28 +70,31 @@ int main(int argc, char** argv)
  //default dictionary preset
   DEFAULT_DICT = read_textfile("words-2.txt");
 
+  int connectionPort;
+ 
+  //use default port number of 1111 if not specified by client
+  if (argc == 2 || argc == 3){
+    connectionPort = atoi(argv[1]);
+  }else{
+    connectionPort = atoi(DEFAULT_PORT);
+    printf("Using default port number: [%d]\n", connectionPort);
+  }
+  
   //custom dictionary is read if there is an argument for it
-  if (argv[2] != NULL){
+  if (argc == 3){
     CUSTOM_DICT = read_textfile(argv[2]);
     DEFAULT_DICT = CUSTOM_DICT;
     printf("Using custom dictionary: [%s]\n", argv[2]);
-  }
-
-  //if there is no port number specified
-  if(argc == 1){
-    printf("No port number entered.\n");
-    return -1;
+  }else{
+    puts("Using default dictionary.");
   }
   
   //sockaddr_in holds information about the user connection. 
   //We don't need it, but it needs to be passed into accept().
   struct sockaddr_in client;
-  int clientLen = sizeof(client);
-  int connectionPort = atoi(argv[1]);
+  int clientLen = sizeof(client);  
   int connectionSocket, clientSocket;
   recvBuffer[0] = '\0';
-  
-  connectionPort = atoi(argv[1]);
   
   //We can't use ports below 1024 and ports above 65535 don't exist.
   if(connectionPort < 1024 || connectionPort > 65535){
@@ -99,7 +104,7 @@ int main(int argc, char** argv)
   
   //Does all the hard work for us.
   connectionSocket = open_listenfd(connectionPort);
-  printf("%d\n", connectionSocket);
+  
   if(connectionSocket == -1){
     printf("Could not connect to %s, maybe try another port number?\n", argv[1]);
     return -1;

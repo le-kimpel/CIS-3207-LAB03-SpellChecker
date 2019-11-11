@@ -41,7 +41,7 @@ int open_listenfd(int port)
 	 //Prepare the socket to allow accept() calls. The value 20 is 
 	 //the backlog, this is the maximum number of connections that will be placed
 	 //on queue until accept() is called again. 
-	 if (listen(listenfd, 20) < 0){
+	 if (listen(listenfd, 2) < 0){
 	 	return -1;
 	 }
 

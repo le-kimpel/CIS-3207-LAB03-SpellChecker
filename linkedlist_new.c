@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-#define MAX_CAPACITY 15
+#define MAX_CAPACITY 2
 
 /* Overhauled version of the queue from the first lab.
    Holds socket connections this time and dequeues from
@@ -38,6 +38,8 @@ q *initialize_queue();
 void print_q(q *command_list);
 
 //function to print the list for debugging
+//...oh shit, I might need a lock around this...
+//or i can just delete it :P
 void print_q(q *command_list){
   
   for (int i = 0; i < command_list->size; i++){
@@ -49,7 +51,7 @@ void print_q(q *command_list){
 }
 
 
-
+//yeah, uh oh 
 int get(q *queue, int index){
 
   connection *current = queue->head;
@@ -87,13 +89,13 @@ q *initialize_queue(){
   queue->head = NULL;
   queue->tail = NULL;
   queue->size = 0;
-
+  
   puts("Queue initialized");
   return queue;
 }
 
 connection *new_node(int element){
-
+  
   //create and allocate new node for queue pointer
   connection *temp = (connection*)malloc(sizeof(connection));
   temp->element = element;
@@ -103,17 +105,17 @@ connection *new_node(int element){
 }
 
 void enqueue(q *queue, int element){
-
+  
   //creates a new node for the queue
   connection *temp = new_node(element);
-
+  
   puts("locking queue...");
   
   //lock the queue to avoid race conditions from other worker threads
   if (pthread_mutex_lock(&queue->mutex)!=0){
     puts("could not lock the queue");
   }
-
+  
   //hitting a producer-consumer problem condition:
   //prints error if we try to wait on an empty queue
   while(queue->counter == queue->capacity){
@@ -126,21 +128,21 @@ void enqueue(q *queue, int element){
   if (queue->size == MAX_CAPACITY){
     puts("MAX CAPACITY error!");
   }
-
+  
   //if we are starting at size 0 or queue is empty
   if (queue->tail == NULL || queue->size == 0){
     queue->head = temp;
     queue->tail = temp;
   }else{
-
+    
     queue->tail->next = temp;
     queue->tail = temp;
-
+    
   }
-
+  
   //increase overall size of queue
   queue->size++;
-
+  
   //increment counter flag to track for max capacity changes
   queue->counter++;
   
@@ -148,25 +150,25 @@ void enqueue(q *queue, int element){
   if (pthread_cond_signal(&queue->isFull) != 0){
     puts("Could not signal for a full slot!");
   }
-
+  
   //if we could not unlock for whatever reason, error
   if (pthread_mutex_unlock(&queue->mutex) != 0){
     puts("Could not unlock mutex");
   }
-
+  
 }                                            
 
 //dequeues and locks the structure
 int dequeue(q *queue){
-
+  
   puts("Locking dequeue...");
   
   if (pthread_mutex_lock(&queue->mutex) != 0){
     puts("Error locking queue");
   }
-
+  
   puts("Queue locked");
-
+  
   printf("q counter = [%d]\n", queue->counter);
   printf("q size = [%d]\n", queue->size);
   
@@ -181,17 +183,17 @@ int dequeue(q *queue){
   
   puts("waiting...");
   
-    //queue can remove an item from the back
-
-    connection *temp = queue->head;
-    queue->head = queue->head->next;
-    queue->size--;
-    queue->counter--;
-    
-    puts("Signaling...");
-    
-    //attempt to signal producers
-    if (pthread_cond_signal(&queue->isEmpty)!=0){
+  //queue can remove an item from the back
+  
+  connection *temp = queue->head;
+  queue->head = queue->head->next;
+  queue->size--;
+  queue->counter--;
+  
+  puts("Signaling...");
+  
+  //attempt to signal producers
+  if (pthread_cond_signal(&queue->isEmpty)!=0){
       puts("Cannot signal an empty slot!");
     }
 
