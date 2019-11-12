@@ -13,6 +13,7 @@
 //The server will then use the socket descriptor to communicate with the user, sending and 
 //receiving messages.
 
+//A mix of the given skeleton code and custom functions 
 
 //function prototypes
 pthread_t *create_threadpool();

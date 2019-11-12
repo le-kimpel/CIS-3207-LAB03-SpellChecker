@@ -83,9 +83,24 @@ is being locked, unlocked, and when threads attempt to remove from it
 with/without success. Thus, no connection is retrieved from an empty queue
 and no extra connections are added past maximum queue capacity.
 
+"pthread_cond_t isFull" signals if the queue is at MAX_CAPACITY
+"pthread_cond_t isEmpty" signals if the queue is at size 0
+The the pthread_mutex_lock will react accordingly in order to satisfy
+the condition of threads accessing an empty/full queue. 
+
 SPELLCHECKING
 Spellchecking was tested using a variety of inadequate inputs.
 Thus the buffer clears after every attempt.
-When the user types 'done', the program closes. 
+When the user types 'done', the program closes.
+
+SOME NETWORKING SYSCALLS THAT HAVE BEEN USED
+
+accept() - Accepts a connection from a port number and listening socket.
+
+socket() - Creates an endpoint for bidirectional communication and returns a file descriptor.
+
+send() - Sends a message across a network using a specific socket file descriptor. 
+
+bind() - Assigns a specified address to a socket using the socket's file descriptor.
 
 
